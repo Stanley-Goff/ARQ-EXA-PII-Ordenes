@@ -12,7 +12,7 @@ Aplicación de órdenes de venta con **SQL Server 2022** (`db`), **API REST en F
 | _NELSON JAVIER GUERRA NOLASCO_ | _202320020194_ |
 | _JOSE ALFREDO MEJIA GRANADOS_ | _202510060768_ |
 | _RAUL ANDRES RAUDALES GARCIA_ | _202510010696_ |
-|
+
 ## Imágenes en Docker Hub
 
 - API: `https://hub.docker.com/r/stanleygoff/ordenes-api` (etiqueta `v1.0`)
