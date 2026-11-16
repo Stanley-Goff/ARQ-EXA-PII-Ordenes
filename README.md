@@ -8,15 +8,15 @@ Aplicación de órdenes de venta con **SQL Server 2022** (`db`), **API REST en F
 | Nombre completo | Número de cuenta |
 |-----------------|------------------|
 | _STANLEY LEMUEL GOFF STERBROOCK_ | _202410060287_ |
-| _RUT NOHEMY SANCHEZ GARCIA_ | _00000000000_ |
-| _NELSON JAVIER GUERRA NOLASCO_ | _00000000000_ |
-| _JOSE ALFREDO MEJIA GRANADOS_ | _00000000000_ |
-| _RAUL ANDRES RAUDALES GARCIA_ | _00000000000_ |
+| _RUT NOHEMY SANCHEZ GARCIA_ | _202010060043_ |
+| _NELSON JAVIER GUERRA NOLASCO_ | _202320020194_ |
+| _JOSE ALFREDO MEJIA GRANADOS_ | _202510060768_ |
+| _RAUL ANDRES RAUDALES GARCIA_ | _202510010696_ |
 |
 ## Imágenes en Docker Hub
 
-- API: `https://hub.docker.com/r/<usuario>/ordenes-api` (etiqueta `v1.0`)
-- Web: `https://hub.docker.com/r/<usuario>/ordenes-web` (etiqueta `v1.0`)
+- API: `https://hub.docker.com/r/stanleygoff/ordenes-api` (etiqueta `v1.0`)
+- Web: `https://hub.docker.com/r/stanleygoff/ordenes-web` (etiqueta `v1.0`)
 
 ## Arquitectura
 
@@ -43,8 +43,8 @@ Red: `ordenes_net` (bridge). Volumen: `sqlserver_data` montado en `/var/opt/mssq
 ├── db
 │   └── init.sql
 ├── DIAGRAMAS.md
+├── documentacion.tex
 ├── evidencias
-├── missfont.log
 ├── README.md
 └── web
     ├── config
@@ -63,13 +63,14 @@ Red: `ordenes_net` (bridge). Volumen: `sqlserver_data` montado en `/var/opt/mssq
     ├── requirements.txt
     └── templates
         ├── base.html
+        ├── base_original.html
         └── ordenes
             ├── confirm_delete.html
             ├── form.html
             ├── orden_detail.html
             └── orden_list.html
 
-9 directories, 31 files
+9 directories, 26 files
 
 ```
 
@@ -78,13 +79,19 @@ Red: `ordenes_net` (bridge). Volumen: `sqlserver_data` montado en `/var/opt/mssq
 Requisitos: Docker Engine con el plugin Compose v2, y al menos 3 GB de RAM libres (SQL Server necesita 2 GB).
 
 ```bash
-git clone https://github.com/<usuario>/ordenes-docker.git
+git clone https://github.com/Stanley-Goff/ARQ-EXA-PII-Ordenes.git
+
 cd ordenes-docker
 
 cp .env.example .env
 # Edite .env: ponga una contraseña segura en MSSQL_SA_PASSWORD
 # (Considere un mínimo de 8 caracteres con mayúsculas, minúsculas y números) y su usuario de Docker Hub.
 
+#Descargar las imagenes de Docker Hub y levantar la arquitectura
+docker compose pull
+docker compose up -d --no-build
+
+#Alternativamente si el comando anterior falla, ejecutar los siguientes comandos
 docker compose up -d --build
 docker compose ps -a
 ```
@@ -159,24 +166,3 @@ curl -s -i -X POST localhost:5000/api/ordenes -H "Content-Type: application/json
 curl -s -X DELETE localhost:5000/api/ordenes/1
 ```
 
-## Publicar las imágenes en Docker Hub
-
-El nombre de las imágenes sale de `DOCKERHUB_USER` en el `.env` (`<usuario>/ordenes-api:v1.0` y `<usuario>/ordenes-web:v1.0`).
-
-```bash
-docker login
-docker compose build
-docker compose push api web
-```
-
-## Evidencias
-
-Guardar las capturas en `evidencias/`:
-
-| Evidencia | Comando / acción | Archivo sugerido |
-|-----------|------------------|------------------|
-| Servicios sanos | `docker compose ps -a` | `01-compose-ps.png` |
-| CRUD en el navegador | Listar, crear, editar y eliminar órdenes y detalles en http://localhost:8000 | `02-crud-*.png` |
-| Pruebas de la API | Comandos curl / Postman de la sección anterior | `03-api-*.png` |
-| Persistencia | Crear una orden → `docker compose down` → `docker compose up -d` → la orden sigue ahí | `04-persistencia-*.png` |
-| Límites de recursos | `docker stats --no-stream` | `05-docker-stats.png` |
