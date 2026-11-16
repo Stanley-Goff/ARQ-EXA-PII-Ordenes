@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Órdenes de venta{% endblock %}</title>
+  <style>
+    :root { --azul:#1f4e79; --gris:#f4f6f8; --borde:#d5dbe1; }
+    * { box-sizing:border-box; }
+    body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif; margin:0; background:var(--gris); color:#222; }
+    header { background:var(--azul); color:#fff; padding:14px 24px; }
+    header a { color:#fff; text-decoration:none; font-weight:600; font-size:1.2rem; }
+    main { max-width:960px; margin:24px auto; padding:0 16px; }
+    .card { background:#fff; border:1px solid var(--borde); border-radius:8px; padding:20px; margin-bottom:20px; }
+    h1 { margin-top:0; font-size:1.5rem; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--borde); }
+    th { background:var(--gris); }
+    td.num, th.num { text-align:right; }
+    .btn { display:inline-block; padding:7px 14px; border-radius:6px; border:1px solid var(--azul);
+           background:var(--azul); color:#fff; text-decoration:none; cursor:pointer; font-size:.95rem; }
+    .btn.sec { background:#fff; color:var(--azul); }
+    .btn.peligro { background:#b3261e; border-color:#b3261e; }
+    .btn.peq { padding:3px 9px; font-size:.85rem; }
+    .acciones { display:flex; gap:6px; flex-wrap:wrap; }
+    .barra { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; flex-wrap:wrap; }
+    .msg { padding:10px 14px; border-radius:6px; margin-bottom:12px; }
+    .msg.success { background:#e3f4e6; border:1px solid #9ad0a4; }
+    .msg.error { background:#fdeaea; border:1px solid #e5a3a0; }
+    .badge { padding:2px 9px; border-radius:12px; font-size:.82rem; font-weight:600; }
+    .Pendiente { background:#fff1cc; } .Pagada { background:#d9f2dd; } .Anulada { background:#f3d6d6; }
+    form p { margin:0 0 14px; }
+    label { display:block; font-weight:600; margin-bottom:4px; }
+    input, select { width:100%; padding:8px; border:1px solid var(--borde); border-radius:6px; font-size:1rem; }
+    .errorlist { color:#b3261e; list-style:none; padding:0; margin:4px 0 0; font-size:.9rem; }
+    .vacio { color:#666; padding:14px 0; }
+  </style>
+</head>
+<body>
+  <header><a href="{% url 'orden_list' %}">Órdenes de venta</a></header>
+  <main>
+    {% for m in messages %}
+      <div class="msg {{ m.tags }}">{{ m }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

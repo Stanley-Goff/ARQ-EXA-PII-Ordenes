@@ -1,0 +1,492 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!45!black,
+    urlcolor=blue!55!black,
+    citecolor=blue!45!black,
+    pdftitle={Documentación del sistema de órdenes de venta},
+    pdfsubject={Aplicación de órdenes de venta desplegada con Docker Compose}
+}
+
+\definecolor{azul}{HTML}{1F4E79}
+\definecolor{grisfondo}{HTML}{F4F6F8}
+\definecolor{gristexto}{HTML}{3E4852}
+\definecolor{verde}{HTML}{39734D}
+\definecolor{naranja}{HTML}{A65E16}
+
+\lstdefinestyle{terminal}{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{grisfondo},
+    frame=single,
+    rulecolor=\color{gristexto!25},
+    breaklines=true,
+    breakatwhitespace=false,
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false,
+    tabsize=2,
+    xleftmargin=4pt,
+    xrightmargin=4pt,
+    aboveskip=8pt,
+    belowskip=8pt
+}
+\lstset{style=terminal}
+
+\setlist[itemize]{topsep=3pt,itemsep=2pt}
+\setlist[enumerate]{topsep=3pt,itemsep=3pt}
+\renewcommand{\arraystretch}{1.2}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+
+\newcommand{\codigo}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\servicio}[1]{\texttt{#1}}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE\bfseries\color{azul} Sistema de órdenes de venta}\\[4pt]
+    {\large Documentación técnica y guía de operación}\\[6pt]
+    {\color{gristexto} Proyecto académico de Arquitectura de Computadoras}
+\end{center}
+
+\tableofcontents
+\clearpage
+
+\section{Introducción}
+
+Este proyecto implementa una aplicación web para administrar órdenes de venta y sus líneas de detalle. La solución separa la interfaz, la lógica de negocio expuesta mediante una API REST y la persistencia relacional en servicios distintos. Docker Compose construye y coordina esos servicios para que puedan ejecutarse como una sola aplicación.
+
+Las funciones disponibles incluyen consultar, crear, editar y eliminar órdenes; consultar el detalle de una orden; y agregar, modificar o eliminar productos dentro de ella. El total se actualiza al cambiar sus detalles. El sistema incluye datos iniciales de demostración.
+
+\subsection{Objetivos y alcance}
+\begin{itemize}
+    \item Mostrar una aplicación multicontenedor con una red interna y almacenamiento persistente.
+    \item Separar presentación, API y base de datos.
+    \item Ofrecer tanto una interfaz web como operaciones REST consumibles por herramientas HTTP.
+    \item Inicializar el esquema y datos de prueba de manera automatizada e idempotente.
+\end{itemize}
+
+La aplicación modela órdenes sencillas; no incluye autenticación de usuarios, pagos, control de inventario, impuestos ni gestión de catálogo independiente. El valor monetario se presenta en lempiras (\texttt{L}) en la interfaz.
+
+\section{Tecnologías y estructura del proyecto}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.20\textwidth} >{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.44\textwidth}}
+\toprule
+\textbf{Componente} & \textbf{Tecnología} & \textbf{Responsabilidad}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Componente} & \textbf{Tecnología} & \textbf{Responsabilidad}\\
+\midrule
+\endhead
+Base de datos & Microsoft SQL Server 2022 & Almacenar órdenes, detalles y datos iniciales.\\
+Inicialización & \texttt{sqlcmd} & Ejecutar \codigo{db/init.sql} después de que SQL Server esté disponible.\\
+API & Python 3.12, Flask, pymssql y Gunicorn & Validar solicitudes, aplicar las operaciones CRUD y comunicarse con SQL Server.\\
+Frontend & Python 3.12, Django, Requests y Gunicorn & Renderizar páginas HTML y consumir la API por HTTP.\\
+Orquestación & Docker Compose v2 & Construir imágenes, crear servicios, red y volumen, configurar dependencias y healthchecks.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Inventario de archivos}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.34\textwidth} >{\raggedright\arraybackslash}p{0.58\textwidth}}
+\toprule
+\textbf{Ruta} & \textbf{Descripción}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Ruta} & \textbf{Descripción}\\
+\midrule
+\endhead
+\codigo{compose.yaml} & Definición de servicios, variables, puertos, límites declarados, red, volumen y dependencias de arranque.\\
+\codigo{.env.example} & Plantilla de las variables de entorno requeridas o configurables.\\
+\codigo{db/init.sql} & Creación de la base y tablas, restricciones, índice y cinco órdenes de ejemplo.\\
+\codigo{api/app.py} & Aplicación Flask, validación, consultas SQL, recursos REST, healthcheck y manejadores de errores.\\
+\codigo{api/requirements.txt} & Versiones de Flask, pymssql y Gunicorn.\\
+\codigo{api/Dockerfile} & Imagen de la API basada en Python 3.12 slim.\\
+\codigo{api/.dockerignore} & Exclusiones del contexto de construcción de la imagen de API.\\
+\codigo{web/manage.py} & Punto de entrada para comandos administrativos de Django.\\
+\codigo{web/config/} & Configuración de Django, URL raíz y aplicación WSGI.\\
+\codigo{web/ordenes/} & Rutas, vistas, formularios y cliente HTTP de la API.\\
+\codigo{web/templates/} & Plantillas HTML para listados, formularios, detalles y confirmación de eliminación.\\
+\codigo{web/requirements.txt} & Versiones de Django, Requests y Gunicorn.\\
+\codigo{web/Dockerfile} & Imagen del frontend basada en Python 3.12 slim.\\
+\codigo{web/.dockerignore} & Exclusiones del contexto de construcción de la imagen web.\\
+\codigo{README.md} & Instrucciones operativas y ejemplos de solicitudes.\\
+\codigo{DIAGRAMAS.md} & Diagramas de arquitectura y dependencias en formato Mermaid.\\
+\codigo{evidencias/} & Directorio previsto para capturas; actualmente contiene solo el archivo de control \codigo{.gitkeep}.\\
+\bottomrule
+\end{longtable}
+
+\section{Arquitectura}
+
+El navegador se comunica con Django por el puerto publicado 8000. Django actúa como cliente HTTP y llama a Flask utilizando el nombre DNS interno \texttt{api} y el puerto 5000. Flask es el único servicio de aplicación que se conecta a SQL Server, en el puerto interno 1433. El servicio de inicialización también se conecta a SQL Server para ejecutar el script SQL, y termina al completarlo.
+
+\begin{center}
+\begin{tikzpicture}[
+    nodo/.style={draw=azul,rounded corners,thick,fill=blue!4,
+        align=center,minimum width=3.0cm,minimum height=1.05cm},
+    dato/.style={draw=verde,rounded corners,thick,fill=green!5,
+        align=center,minimum width=3.0cm,minimum height=1.05cm},
+    conexion/.style={-{Stealth[length=2.5mm]},thick,draw=gristexto},
+    node distance=1.2cm and 1.15cm
+]
+    \node[nodo] (user) {Navegador\\HTTP :8000};
+    \node[nodo,right=of user] (web) {\textbf{web}\\Django + Gunicorn\\contenedor :8000};
+    \node[nodo,right=of web] (api) {\textbf{api}\\Flask + Gunicorn\\contenedor :5000};
+    \node[dato,right=of api] (db) {\textbf{db}\\SQL Server 2022\\contenedor :1433};
+    \node[nodo,below=of db] (init) {\textbf{db-init}\\sqlcmd + init.sql\\servicio de una ejecución};
+    \draw[conexion] (user) -- node[above,font=\scriptsize]{páginas web} (web);
+    \draw[conexion] (web) -- node[above,font=\scriptsize]{HTTP / JSON} (api);
+    \draw[conexion] (api) -- node[above,font=\scriptsize]{pymssql / TDS} (db);
+    \draw[conexion] (init) -- node[right,font=\scriptsize]{sqlcmd} (db);
+\end{tikzpicture}
+\end{center}
+
+Todos los servicios pertenecen a la red bridge \texttt{ordenes\_net}. El puerto de SQL Server no está publicado hacia el anfitrión; se accede a él desde los contenedores conectados a esa red. Los puertos 8000 y 5000 sí se publican como \texttt{localhost:8000} y \texttt{localhost:5000}, respectivamente. Los datos de SQL Server se guardan en el volumen con nombre \texttt{sqlserver\_data}, montado en \codigo{/var/opt/mssql}.
+
+\subsection{Secuencia de inicio}
+\begin{enumerate}
+    \item Compose crea la red y el volumen, y arranca \servicio{db}.
+    \item El healthcheck consulta SQL Server hasta que responde correctamente.
+    \item \servicio{db-init} espera a que \servicio{db} esté saludable y ejecuta \codigo{db/init.sql}.
+    \item \servicio{api} espera a que la base esté saludable y a que \servicio{db-init} termine exitosamente.
+    \item \servicio{web} espera a que el healthcheck de la API sea satisfactorio.
+\end{enumerate}
+
+El servicio \servicio{db-init} es de una sola ejecución: su estado \texttt{Exited (0)} después de un arranque correcto es esperado y no representa un fallo. El frontend y la API son procesos de larga duración con política de reinicio \texttt{unless-stopped}; el servicio de inicialización no se reinicia automáticamente.
+
+\subsection{Healthchecks}
+\begin{itemize}
+    \item \servicio{db}: ejecuta \texttt{SELECT 1} mediante \texttt{sqlcmd}, con un período inicial de 30 segundos, intervalos de 10 segundos y hasta 12 reintentos.
+    \item \servicio{api}: solicita \codigo{/health}; esa ruta prueba una consulta a la base y devuelve HTTP 200 si puede conectarse o HTTP 503 si no.
+    \item \servicio{web}: solicita \codigo{/health}, que devuelve el texto \texttt{ok}. Este chequeo verifica que Django responda, no la conectividad de extremo a extremo con la API.
+\end{itemize}
+
+\section{Modelo de datos}
+
+La base se llama \texttt{OrdenesDB} y contiene dos tablas relacionadas uno-a-muchos:
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}p{0.27\textwidth} >{\raggedright\arraybackslash}p{0.44\textwidth}}
+\toprule
+\textbf{Tabla} & \textbf{Columna} & \textbf{Significado y restricciones}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Tabla} & \textbf{Columna} & \textbf{Significado y restricciones}\\
+\midrule
+\endhead
+\texttt{ordenes} & \texttt{id} & Identificador entero autoincremental y clave primaria.\\
+& \texttt{cliente} & Nombre del cliente, texto Unicode de hasta 120 caracteres, obligatorio.\\
+& \texttt{fecha} & Fecha de la orden; por omisión se toma la fecha actual de SQL Server.\\
+& \texttt{estado} & Estado limitado a \texttt{Pendiente}, \texttt{Pagada} o \texttt{Anulada}.\\
+& \texttt{total} & Total decimal de la orden, con valor predeterminado cero.\\
+\midrule
+\texttt{orden\_detalle} & \texttt{id} & Identificador entero autoincremental y clave primaria.\\
+& \texttt{orden\_id} & Clave foránea a \texttt{ordenes.id}; cada línea pertenece a una orden.\\
+& \texttt{producto} & Nombre del producto, texto Unicode de hasta 120 caracteres, obligatorio.\\
+& \texttt{cantidad} & Cantidad entera positiva.\\
+& \texttt{precio\_unitario} & Precio decimal no negativo.\\
+& \texttt{subtotal} & Importe de la línea, calculado como cantidad por precio unitario.\\
+\bottomrule
+\end{longtable}
+
+La tabla de detalles tiene un índice sobre \texttt{orden\_id} para facilitar su consulta por orden. Las restricciones de SQL Server protegen la integridad de claves y algunos valores incluso si una operación no procede desde la interfaz.
+
+\subsection{Cálculo y persistencia de totales}
+
+La API calcula el subtotal de una línea como \texttt{cantidad × precio\_unitario}. Después de agregar, actualizar o eliminar una línea, recalcula el total de la orden sumando sus subtotales; si no quedan líneas, el total es cero. Al borrar una orden, la API elimina primero sus detalles y luego la orden. El script inicial crea cinco órdenes con dos o más líneas cada una y calcula sus totales.
+
+\subsection{Inicialización idempotente}
+
+El script comprueba si existen la base y las tablas antes de crearlas. Inserta los datos de demostración solo cuando la tabla de órdenes está vacía. Por ello puede volver a ejecutarse sin duplicar automáticamente esas órdenes. No es un mecanismo general de migraciones: cambios futuros en el esquema deben gestionarse explícitamente.
+
+\section{API REST}
+
+La API escucha en el puerto 5000 del contenedor. Compose lo publica como \texttt{localhost:5000}. Las respuestas se serializan como JSON; fechas se representan como cadenas ISO y los valores \texttt{Decimal} como números JSON.
+
+\subsection{Recursos y operaciones}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.15\textwidth} >{\raggedright\arraybackslash}p{0.42\textwidth} >{\raggedright\arraybackslash}p{0.30\textwidth}}
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Resultado}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Método} & \textbf{Ruta} & \textbf{Resultado}\\
+\midrule
+\endhead
+GET & \path{/api/ordenes} & Lista las órdenes sin anidar sus detalles.\\
+GET & \path{/api/ordenes/<id>} & Obtiene una orden con su lista de detalles.\\
+POST & \path{/api/ordenes} & Crea una orden y, opcionalmente, sus detalles; responde 201.\\
+PUT & \path{/api/ordenes/<id>} & Actualiza uno o más campos de la orden.\\
+DELETE & \path{/api/ordenes/<id>} & Elimina la orden y sus detalles.\\
+GET & \path{/api/ordenes/<id>/detalles} & Lista los detalles de una orden.\\
+POST & \path{/api/ordenes/<id>/detalles} & Agrega un detalle y recalcula el total; responde 201.\\
+PUT & \path{/api/detalles/<id>} & Actualiza campos de un detalle y recalcula el total de su orden.\\
+DELETE & \path{/api/detalles/<id>} & Elimina un detalle y recalcula el total de su orden.\\
+GET & \path{/health} & Comprueba la conexión de la API a SQL Server.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Formato de solicitudes}
+
+Las operaciones de escritura reciben un objeto JSON mediante el encabezado \texttt{Content-Type: application/json}.
+
+\begin{lstlisting}
+{
+  "cliente": "Cliente de ejemplo",
+  "estado": "Pendiente",
+  "detalles": [
+    {
+      "producto": "Mouse",
+      "cantidad": 2,
+      "precio_unitario": 350.00
+    }
+  ]
+}
+\end{lstlisting}
+
+Para crear una orden, \texttt{cliente} es obligatorio; \texttt{fecha} es opcional y debe tener formato \texttt{AAAA-MM-DD}; \texttt{estado} es opcional y por omisión vale \texttt{Pendiente}; y \texttt{detalles} es una lista opcional. Para agregar un detalle se envía \texttt{producto}, \texttt{cantidad} y \texttt{precio\_unitario}. Las solicitudes PUT aceptan cambios parciales, pero requieren al menos un campo modificable.
+
+\subsection{Validaciones y códigos de respuesta}
+\begin{itemize}
+    \item Cliente y producto: texto no vacío, recortado en los extremos y de máximo 120 caracteres.
+    \item Estado: únicamente \texttt{Pendiente}, \texttt{Pagada} o \texttt{Anulada}.
+    \item Cantidad: entero entre 1 y 10\,000.
+    \item Precio unitario: valor numérico finito entre 0 y 99\,999.99, con dos posiciones decimales.
+    \item Fecha explícita: fecha ISO válida en formato \texttt{AAAA-MM-DD}.
+    \item Un cuerpo ausente, inválido o que no sea un objeto JSON produce un error de validación.
+\end{itemize}
+
+Las respuestas exitosas usan 200 para consultas, cambios y eliminaciones, y 201 para creaciones. Los errores de validación usan 400; los identificadores inexistentes, 404; los métodos no admitidos, 405; los errores no controlados, 500; y la falta de conexión a la base en \codigo{/health}, 503. Los errores se devuelven en un objeto JSON con la propiedad \texttt{error}. El identificador de ruta debe ser un entero.
+
+\subsection{Ejemplos con \texttt{curl}}
+\begin{lstlisting}
+# Consultar las ordenes
+curl -s http://localhost:5000/api/ordenes
+curl -s http://localhost:5000/api/ordenes/1
+
+# Crear una orden con una linea de detalle
+curl -s -X POST http://localhost:5000/api/ordenes \
+  -H "Content-Type: application/json" \
+  -d '{"cliente":"Cliente Prueba","estado":"Pendiente","detalles":[{"producto":"Mouse","cantidad":2,"precio_unitario":350}]}'
+
+# Cambiar el estado de una orden
+curl -s -X PUT http://localhost:5000/api/ordenes/1 \
+  -H "Content-Type: application/json" \
+  -d '{"estado":"Anulada"}'
+
+# Consultar la salud de la API y su conexion con SQL Server
+curl -i http://localhost:5000/health
+\end{lstlisting}
+
+\section{Aplicación web}
+
+El frontend está implementado con Django y no mantiene una base de datos propia: \codigo{DATABASES} se configura vacío, y las operaciones de negocio se delegan a la API mediante Requests. La dirección base de la API se obtiene de \texttt{API\_URL}; dentro de Compose su valor es \texttt{http://api:5000}. El cliente establece un timeout de 10 segundos y convierte errores de conexión, timeout y respuestas HTTP de error en mensajes que las vistas pueden mostrar.
+
+\subsection{Páginas y flujos}
+\begin{itemize}
+    \item \textbf{Listado (\codigo{/}):} muestra identificador, cliente, fecha, estado, total y enlaces a las acciones de cada orden.
+    \item \textbf{Detalle (\codigo{/ordenes/<id>/}):} muestra los datos de la orden, el total y sus líneas con subtotales.
+    \item \textbf{Crear y editar órdenes:} un formulario valida cliente, fecha y estado. La fecha inicial es la fecha del proceso web y el estado inicial es Pendiente.
+    \item \textbf{Agregar y editar detalles:} un formulario valida nombre, cantidad y precio de acuerdo con los límites de la API.
+    \item \textbf{Eliminar:} las órdenes y detalles requieren confirmación mediante una página con formulario POST. Las solicitudes POST incluyen el token CSRF de Django.
+    \item \textbf{Mensajes:} las vistas muestran confirmaciones o errores de comunicación y negocio en la interfaz.
+\end{itemize}
+
+La plantilla base define el estilo visual, los mensajes y la navegación. Los formularios, el listado y el detalle se renderizan con plantillas Django; el frontend no contiene lógica para conectarse directamente a SQL Server. El endpoint de salud de Django (\codigo{/health}) responde \texttt{ok}.
+
+\subsection{Rutas de la interfaz}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.48\textwidth} >{\raggedright\arraybackslash}p{0.40\textwidth}}
+\toprule
+\textbf{Ruta} & \textbf{Uso}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Ruta} & \textbf{Uso}\\
+\midrule
+\endhead
+\path{/} & Listado de órdenes.\\
+\path{/ordenes/nueva/} & Formulario para crear una orden.\\
+\path{/ordenes/<id>/} & Vista de una orden y sus detalles.\\
+\path{/ordenes/<id>/editar/} & Edición de una orden.\\
+\path{/ordenes/<id>/eliminar/} & Confirmación y eliminación de una orden.\\
+\path{/ordenes/<id>/detalles/nuevo/} & Formulario para agregar un detalle.\\
+\path{/ordenes/<id>/detalles/<detalle_id>/editar/} & Edición de un detalle.\\
+\path{/ordenes/<id>/detalles/<detalle_id>/eliminar/} & Confirmación y eliminación de un detalle.\\
+\path{/health} & Comprobación HTTP del proceso web.\\
+\bottomrule
+\end{longtable}
+
+\section{Docker y configuración}
+
+\subsection{Requisitos}
+\begin{itemize}
+    \item Docker Engine y el plugin Docker Compose v2.
+    \item Al menos 3 GB de RAM disponibles para los límites y requisitos configurados, especialmente SQL Server.
+    \item Acceso a los registros de contenedores para diagnosticar fallos de arranque.
+\end{itemize}
+
+Los Dockerfiles de API y web usan \texttt{python:3.12-slim}, instalan las dependencias fijadas en sus archivos \texttt{requirements.txt}, copian el proyecto y ejecutan Gunicorn con dos workers. En ambos contenedores la aplicación corre como el usuario sin privilegios \texttt{appuser} (UID 10001). Las variables \texttt{PYTHONDONTWRITEBYTECODE} y \texttt{PYTHONUNBUFFERED} evitan archivos bytecode y hacen que la salida de Python se registre sin búfer.
+
+\subsection{Variables de entorno}
+Copie \codigo{.env.example} como \codigo{.env} y ajuste estos valores antes de iniciar Compose:
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.30\textwidth} >{\raggedright\arraybackslash}p{0.62\textwidth}}
+\toprule
+\textbf{Variable} & \textbf{Propósito}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Variable} & \textbf{Propósito}\\
+\midrule
+\endhead
+\texttt{MSSQL\_SA\_PASSWORD} & Contraseña obligatoria de SQL Server para la cuenta \texttt{sa}. Compose exige que esté definida. Debe cumplir los requisitos de complejidad de SQL Server.\\
+\texttt{DOCKERHUB\_USER} & Usuario empleado para etiquetar las imágenes \texttt{ordenes-api:v1.0} y \texttt{ordenes-web:v1.0}. Si no se define, Compose usa \texttt{usuario}.\\
+\texttt{DJANGO\_SECRET\_KEY} & Clave secreta configurada para Django. Si falta, Compose utiliza un valor de ejemplo que debe reemplazarse en despliegues reales.\\
+\bottomrule
+\end{longtable}
+
+Compose configura también las conexiones internas de la API (\texttt{DB\_HOST=db}, puerto 1433, base \texttt{OrdenesDB}, usuario \texttt{sa}) y la URL de API del frontend (\texttt{API\_URL=http://api:5000}). Django admite además \texttt{DJANGO\_DEBUG} y \texttt{DJANGO\_ALLOWED\_HOSTS}; en Compose el modo debug queda desactivado por omisión y los hosts permitidos se establecen como \texttt{*}. No se deben incluir contraseñas reales ni claves de producción en el repositorio. El ejemplo recomienda evitar los caracteres \texttt{\$} y comillas dobles en la contraseña para no complicar la lectura del archivo de entorno. Los archivos \codigo{.dockerignore} de ambos servicios excluyen \codigo{.env} del contexto de construcción.
+
+\subsection{Límites de recursos definidos}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.25\textwidth} >{\raggedright\arraybackslash}p{0.56\textwidth}}
+\toprule
+\textbf{Servicio} & \textbf{Límite declarado en Compose}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Servicio} & \textbf{Límite declarado en Compose}\\
+\midrule
+\endhead
+\servicio{db} & 1 CPU y 2 GB de memoria; SQL Server tiene además \texttt{MSSQL\_MEMORY\_LIMIT\_MB=1536}.\\
+\servicio{db-init} & 0.25 CPU y 256 MB de memoria.\\
+\servicio{api} & 0.5 CPU y 256 MB de memoria.\\
+\servicio{web} & 0.5 CPU y 256 MB de memoria.\\
+\bottomrule
+\end{longtable}
+
+Los límites se declaran bajo \texttt{deploy.resources.limits}; la aplicación efectiva de esos límites depende de la versión y el modo de ejecución de Docker Compose/Engine. Se pueden revisar los consumos del entorno con \codigo{docker stats --no-stream}.
+
+\section{Instalación, ejecución y mantenimiento}
+
+\subsection{Primer arranque}
+\begin{lstlisting}
+git clone https://github.com/<usuario>/ordenes-docker.git
+cd ordenes-docker
+
+cp .env.example .env
+# Edite .env y defina una contrasena segura para MSSQL_SA_PASSWORD.
+
+docker compose up -d --build
+docker compose ps -a
+\end{lstlisting}
+
+En un primer arranque SQL Server puede tardar entre 30 y 60 segundos en estar listo. Los healthchecks y las dependencias de Compose coordinan la inicialización, por lo que la interfaz podría no estar disponible inmediatamente.
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.30\textwidth} >{\raggedright\arraybackslash}p{0.60\textwidth}}
+\toprule
+\textbf{Componente} & \textbf{Dirección desde el anfitrión}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Componente} & \textbf{Dirección desde el anfitrión}\\
+\midrule
+\endhead
+Interfaz web & \url{http://localhost:8000}\\
+API: listado de órdenes & \url{http://localhost:5000/api/ordenes}\\
+API: healthcheck & \url{http://localhost:5000/health}\\
+\bottomrule
+\end{longtable}
+
+\subsection{Comandos de operación}
+\begin{lstlisting}
+# Estado de todos los servicios, incluso los que ya finalizaron
+docker compose ps -a
+
+# Seguir los registros de los servicios principales
+docker compose logs -f db api web
+
+# Ejecutar de nuevo el servicio de inicializacion cuando sea necesario
+docker compose run --rm db-init
+
+# Detener y quitar contenedores; conservar el volumen de la base
+docker compose down
+
+# Eliminar tambien el volumen sqlserver_data y sus datos
+docker compose down -v
+\end{lstlisting}
+
+\textbf{Advertencia:} \codigo{docker compose down -v} elimina el volumen de SQL Server. Al volver a iniciar, se crea una base nueva y se insertan otra vez los datos de demostración. Si se desea conservar la información, utilice \codigo{docker compose down} sin \texttt{-v}.
+
+\subsection{Persistencia}
+
+La base de datos reside en el volumen Docker \texttt{sqlserver\_data}, por lo que los datos sobreviven a la eliminación y recreación de contenedores siempre que no se elimine ese volumen. Una comprobación manual consiste en crear una orden, ejecutar \codigo{docker compose down}, volver a iniciar Compose y consultar nuevamente la orden. La persistencia del volumen no sustituye una política de copias de seguridad.
+
+\subsection{Construcción y publicación de imágenes}
+
+Las imágenes de aplicación se etiquetan a partir de \texttt{DOCKERHUB\_USER} con las etiquetas \texttt{v1.0}. Para publicarlas en Docker Hub, configure un usuario válido, autentíquese y ejecute:
+\begin{lstlisting}
+docker login
+docker compose build
+docker compose push api web
+\end{lstlisting}
+
+Los valores de ejemplo del repositorio, Docker Hub e integrantes en el README son marcadores que deben completarse antes de una entrega o publicación.
+
+\section{Pruebas y evidencias}
+
+\subsection{Pruebas funcionales recomendadas}
+\begin{enumerate}
+    \item Compruebe el estado de los servicios con \codigo{docker compose ps -a}: \servicio{db}, \servicio{api} y \servicio{web} deben alcanzar \texttt{healthy}; \servicio{db-init} debe finalizar con código cero.
+    \item Consulte \codigo{http://localhost:5000/health} y confirme la respuesta de salud de la API.
+    \item Abra \codigo{http://localhost:8000} y compruebe el listado de las órdenes iniciales.
+    \item Cree una orden con al menos un detalle, edite la orden y el detalle, y verifique que el total cambie correctamente.
+    \item Elimine un detalle y una orden, verificando el recálculo y la eliminación asociada.
+    \item Intente consultar un identificador inexistente y enviar campos inválidos; compruebe que se devuelvan errores informativos.
+    \item Compruebe la persistencia después de detener y volver a iniciar los servicios sin borrar el volumen.
+\end{enumerate}
+
+\subsection{Capturas}
+
+El directorio \codigo{evidencias/} está preparado para almacenar capturas del estado de Compose, del CRUD en navegador, de las pruebas API, de la persistencia y de los recursos de contenedor. En el repositorio revisado aún no hay capturas, solo \codigo{.gitkeep}. El README sugiere nombres como \codigo{01-compose-ps.png}, \codigo{02-crud-*.png}, \codigo{03-api-*.png}, \codigo{04-persistencia-*.png} y \codigo{05-docker-stats.png}.
+
+\section{Manejo de errores y consideraciones operativas}
+
+\begin{itemize}
+    \item La API responde con JSON para errores de negocio, rutas inexistentes y métodos no permitidos. Los errores inesperados se registran en el log de Flask y se presentan al cliente como error interno genérico.
+    \item El cliente Django presenta errores de timeout y conexión en la interfaz; la API utiliza un timeout HTTP de 10 segundos desde el frontend.
+    \item Si \servicio{api} no inicia, revise primero el estado y los registros de \servicio{db}, la inicialización SQL y la variable \texttt{MSSQL\_SA\_PASSWORD}.
+    \item Si el sitio carga pero no muestra datos, revise \texttt{API\_URL} y el estado saludable de \servicio{api}; desde el contenedor web el hostname esperado es \texttt{api}, no \texttt{localhost}.
+    \item Si SQL Server demora en responder, consulte \codigo{docker compose logs db} antes de reiniciar o borrar el volumen.
+    \item En Fedora con SELinux, el montaje del script SQL usa la opción \texttt{:z} para permitir su lectura desde el contenedor sin desactivar SELinux.
+\end{itemize}
+
+\subsection{Seguridad y despliegue}
+
+Esta configuración está orientada a un entorno académico/local. No incorpora inicio de sesión ni autorización; los endpoints que modifican datos están accesibles para quien pueda alcanzar el puerto publicado de la API. Antes de exponerla a una red no confiable se requiere, como mínimo, diseñar autenticación y autorización, restringir el acceso de red y reemplazar los secretos de ejemplo por valores fuertes y gestionados fuera del repositorio. También conviene revisar \texttt{DEBUG}, \texttt{DJANGO\_ALLOWED\_HOSTS}, TLS, registros, copias de seguridad y las versiones de las imágenes antes de un despliegue real.
+
+\section{Resumen del flujo de una solicitud}
+
+Al crear una orden desde el navegador, Django valida el formulario y envía un POST JSON al servicio Flask. La API valida de nuevo los campos, inserta la orden y sus líneas dentro de la misma unidad de trabajo de base de datos, calcula el total y responde con la orden creada. Django muestra el mensaje de éxito y redirige al detalle de la orden. Para modificar una línea se sigue el mismo flujo: Django delega la escritura en la API y Flask actualiza el subtotal y recalcula el total guardado en SQL Server.
+
+Esta separación permite que otros clientes HTTP utilicen la API sin depender de las plantillas web y mantiene el acceso a la base centralizado en el servicio de API.
+
+\end{document}

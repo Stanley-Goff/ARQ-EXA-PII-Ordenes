@@ -1,0 +1,182 @@
+# Órdenes de venta en 3 contenedores
+
+Examen práctico del segundo parcial — Arquitectura de Computadoras.
+Aplicación de órdenes de venta con **SQL Server 2022** (`db`), **API REST en Flask** (`api`) y **frontend en Django** (`web`), levantada con Docker Compose.
+
+## Integrantes
+
+| Nombre completo | Número de cuenta |
+|-----------------|------------------|
+| _STANLEY LEMUEL GOFF STERBROOCK_ | _202410060287_ |
+| _RUT NOHEMY SANCHEZ GARCIA_ | _00000000000_ |
+| _NELSON JAVIER GUERRA NOLASCO_ | _00000000000_ |
+| _JOSE ALFREDO MEJIA GRANADOS_ | _00000000000_ |
+| _RAUL ANDRES RAUDALES GARCIA_ | _00000000000_ |
+|
+## Imágenes en Docker Hub
+
+- API: `https://hub.docker.com/r/<usuario>/ordenes-api` (etiqueta `v1.0`)
+- Web: `https://hub.docker.com/r/<usuario>/ordenes-web` (etiqueta `v1.0`)
+
+## Arquitectura
+
+Diagrama completo (contenedores, red, volumen y puertos) en **[DIAGRAMAS.md](DIAGRAMAS.md)**.
+
+| Servicio | Tecnología | Puerto | Límites |
+|----------|-----------|--------|---------|
+| `db` | SQL Server 2022 (imagen oficial) | 1433 (solo red interna) | 1 CPU / 2 GB |
+| `db-init` | Misma imagen, ejecuta `sqlcmd` con `db/init.sql` y termina | — | 0.25 CPU / 256 MB |
+| `api` | Python 3.12 + Flask + pymssql | 5000 | 0.5 CPU / 256 MB |
+| `web` | Python 3.12 + Django + requests | 8000 | 0.5 CPU / 256 MB |
+
+Red: `ordenes_net` (bridge). Volumen: `sqlserver_data` montado en `/var/opt/mssql`.
+
+## Estructura del repositorio
+
+```
+.
+├── api
+│   ├── app.py
+│   ├── Dockerfile
+│   └── requirements.txt
+├── compose.yaml
+├── db
+│   └── init.sql
+├── DIAGRAMAS.md
+├── evidencias
+├── missfont.log
+├── README.md
+└── web
+    ├── config
+    │   ├── __init__.py
+    │   ├── settings.py
+    │   ├── urls.py
+    │   └── wsgi.py
+    ├── Dockerfile
+    ├── manage.py
+    ├── ordenes
+    │   ├── api.py
+    │   ├── forms.py
+    │   ├── __init__.py
+    │   ├── urls.py
+    │   └── views.py
+    ├── requirements.txt
+    └── templates
+        ├── base.html
+        └── ordenes
+            ├── confirm_delete.html
+            ├── form.html
+            ├── orden_detail.html
+            └── orden_list.html
+
+9 directories, 31 files
+
+```
+
+## Ejecutar el proyecto desde cero
+
+Requisitos: Docker Engine con el plugin Compose v2, y al menos 3 GB de RAM libres (SQL Server necesita 2 GB).
+
+```bash
+git clone https://github.com/<usuario>/ordenes-docker.git
+cd ordenes-docker
+
+cp .env.example .env
+# Edite .env: ponga una contraseña segura en MSSQL_SA_PASSWORD
+# (Considere un mínimo de 8 caracteres con mayúsculas, minúsculas y números) y su usuario de Docker Hub.
+
+docker compose up -d --build
+docker compose ps -a
+```
+
+La primera vez SQL Server tardara un poco más en estar listo; Compose espera por sí solo (healthchecks). Cuando termine:
+
+| Qué | URL |
+|-----|-----|
+| Frontend (CRUD) | http://localhost:8000 |
+| API | http://localhost:5000/api/ordenes |
+| Salud de la API | http://localhost:5000/health |
+
+`docker compose ps -a` mostrará `db`, `api` y `web` como `healthy` y `db-init` como `Exited (0)`: es normal, es el servicio de inicialización que ya terminó.
+
+> **Fedora (SELinux):** el montaje de `init.sql` usa la opción `:z` para que SELinux permita leerlo desde el contenedor; no hace falta desactivar SELinux.
+
+### Cómo se ejecuta `init.sql`
+
+Lo ejecuta automáticamente el servicio `db-init` con `sqlcmd` apenas `db` está sano, y la `api` solo arranca cuando `db-init` terminó con éxito. El script es idempotente (crea la base, las tablas y las 5 órdenes de prueba solo si no existen), así que puede repetirse sin duplicar datos. Para correrlo manualmente:
+
+```bash
+docker compose run --rm db-init
+```
+
+### Detener y limpiar
+
+```bash
+docker compose down        # detiene y elimina contenedores; los datos se conservan en el volumen
+docker compose down -v     # además BORRA el volumen (reinicia la base desde cero)
+```
+
+## Endpoints de la API
+
+| Método | Ruta | Acción | Códigos |
+|--------|------|--------|---------|
+| GET | `/api/ordenes` | Listar órdenes | 200 |
+| GET | `/api/ordenes/<id>` | Ver una orden con sus detalles | 200, 404 |
+| POST | `/api/ordenes` | Crear una orden | 201, 400 |
+| PUT | `/api/ordenes/<id>` | Actualizar una orden | 200, 400, 404 |
+| DELETE | `/api/ordenes/<id>` | Eliminar una orden y sus detalles | 200, 404 |
+| GET / POST | `/api/ordenes/<id>/detalles` | Listar o agregar detalles | 200 / 201, 400, 404 |
+| PUT / DELETE | `/api/detalles/<id>` | Actualizar o eliminar un detalle | 200, 400, 404 |
+| GET | `/health` | Estado de la API y de la conexión a la base | 200, 503 |
+
+El `total` de la orden se recalcula cada vez que se agrega, modifica o elimina un detalle.
+
+### Pruebas con curl
+
+```bash
+# Listar y ver una orden
+curl -s localhost:5000/api/ordenes
+curl -s localhost:5000/api/ordenes/1
+
+# Crear una orden con detalles
+curl -s -X POST localhost:5000/api/ordenes -H "Content-Type: application/json" \
+  -d '{"cliente":"Cliente Prueba","estado":"Pendiente","detalles":[{"producto":"Mouse","cantidad":2,"precio_unitario":350}]}'
+
+# Actualizar la orden
+curl -s -X PUT localhost:5000/api/ordenes/1 -H "Content-Type: application/json" -d '{"estado":"Anulada"}'
+
+# Agregar, actualizar y eliminar un detalle (el total se recalcula)
+curl -s -X POST localhost:5000/api/ordenes/1/detalles -H "Content-Type: application/json" \
+  -d '{"producto":"Cable USB","cantidad":3,"precio_unitario":80}'
+curl -s -X PUT localhost:5000/api/detalles/1 -H "Content-Type: application/json" -d '{"cantidad":5}'
+curl -s -X DELETE localhost:5000/api/detalles/1
+
+# Errores esperados
+curl -s -i localhost:5000/api/ordenes/9999                                   # 404
+curl -s -i -X POST localhost:5000/api/ordenes -H "Content-Type: application/json" -d '{}'   # 400
+
+# Eliminar la orden con todos sus detalles
+curl -s -X DELETE localhost:5000/api/ordenes/1
+```
+
+## Publicar las imágenes en Docker Hub
+
+El nombre de las imágenes sale de `DOCKERHUB_USER` en el `.env` (`<usuario>/ordenes-api:v1.0` y `<usuario>/ordenes-web:v1.0`).
+
+```bash
+docker login
+docker compose build
+docker compose push api web
+```
+
+## Evidencias
+
+Guardar las capturas en `evidencias/`:
+
+| Evidencia | Comando / acción | Archivo sugerido |
+|-----------|------------------|------------------|
+| Servicios sanos | `docker compose ps -a` | `01-compose-ps.png` |
+| CRUD en el navegador | Listar, crear, editar y eliminar órdenes y detalles en http://localhost:8000 | `02-crud-*.png` |
+| Pruebas de la API | Comandos curl / Postman de la sección anterior | `03-api-*.png` |
+| Persistencia | Crear una orden → `docker compose down` → `docker compose up -d` → la orden sigue ahí | `04-persistencia-*.png` |
+| Límites de recursos | `docker stats --no-stream` | `05-docker-stats.png` |

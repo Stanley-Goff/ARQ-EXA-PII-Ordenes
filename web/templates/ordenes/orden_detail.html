@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Orden #{{ orden.id }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="barra">
+    <h1>Orden #{{ orden.id }}</h1>
+    <div class="acciones">
+      <a class="btn sec" href="{% url 'orden_list' %}">← Volver</a>
+      <a class="btn sec" href="{% url 'orden_edit' orden.id %}">Editar orden</a>
+      <a class="btn peligro" href="{% url 'orden_delete' orden.id %}">Eliminar orden</a>
+    </div>
+  </div>
+  <p><strong>Cliente:</strong> {{ orden.cliente }}<br>
+     <strong>Fecha:</strong> {{ orden.fecha }}<br>
+     <strong>Estado:</strong> <span class="badge {{ orden.estado }}">{{ orden.estado }}</span><br>
+     <strong>Total:</strong> L {{ orden.total|floatformat:2 }}</p>
+</div>
+
+<div class="card">
+  <div class="barra">
+    <h1>Detalles</h1>
+    <a class="btn" href="{% url 'detalle_create' orden.id %}">+ Agregar detalle</a>
+  </div>
+  {% if orden.detalles %}
+  <table>
+    <thead>
+      <tr><th>#</th><th>Producto</th><th class="num">Cantidad</th><th class="num">Precio unit.</th><th class="num">Subtotal</th><th>Acciones</th></tr>
+    </thead>
+    <tbody>
+    {% for d in orden.detalles %}
+      <tr>
+        <td>{{ d.id }}</td>
+        <td>{{ d.producto }}</td>
+        <td class="num">{{ d.cantidad }}</td>
+        <td class="num">L {{ d.precio_unitario|floatformat:2 }}</td>
+        <td class="num">L {{ d.subtotal|floatformat:2 }}</td>
+        <td class="acciones">
+          <a class="btn peq sec" href="{% url 'detalle_edit' orden.id d.id %}">Editar</a>
+          <a class="btn peq peligro" href="{% url 'detalle_delete' orden.id d.id %}">Eliminar</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="vacio">Esta orden todavía no tiene detalles.</p>
+  {% endif %}
+</div>
+{% endblock %}
