@@ -166,3 +166,65 @@ curl -s -i -X POST localhost:5000/api/ordenes -H "Content-Type: application/json
 curl -s -X DELETE localhost:5000/api/ordenes/1
 ```
 
+
+## Evidencias de ejecución
+
+Las siguientes capturas documentan el funcionamiento de la arquitectura y las pruebas prácticas realizadas.
+
+### 1. Estado de los servicios Docker
+
+Verificación del estado de los contenedores mediante `docker compose ps -a`.
+
+![Estado de los servicios](evidencias/01-dps.png)
+
+### 2. Operaciones CRUD desde Django
+
+**Página principal y listado de órdenes**
+
+![Listado de órdenes](evidencias/home.jpeg)
+
+**Visualización de una orden**
+
+![Detalle de una orden](evidencias/orden.jpeg)
+
+**Creación de órdenes**
+
+![Creación de una orden desde Django](evidencias/crear-api.png)
+
+**Edición de órdenes**
+
+![Edición de una orden desde Django](evidencias/editar.jpeg)
+
+**Eliminación de órdenes**
+
+![Eliminación de una orden desde Django](evidencias/eliminar.jpeg)
+
+### 3. Pruebas de operaciones CRUD mediante la API REST
+
+**Consulta de órdenes (GET)**
+
+![Consulta de órdenes mediante API](evidencias/list-api.png)
+
+**Creación de órdenes (POST)**
+
+![Creación de órdenes mediante API](evidencias/crear-api.png)
+
+**Actualización de órdenes (PUT)**
+
+![Actualización de órdenes mediante API](evidencias/update-api.png)
+
+**Eliminación de órdenes (DELETE)**
+
+![Eliminación de órdenes mediante API](evidencias/elminar-api.png)
+
+### 4. Persistencia de datos
+
+Comprobación de la conservación de los registros después de detener y recrear los contenedores, utilizando el volumen persistente de SQL Server.
+
+![Persistencia de datos](evidencias/persitencia.png)
+
+### 5. Límites y consumo de recursos
+
+Supervisión del consumo de CPU y memoria de los contenedores mediante `docker stats`.
+
+![Consumo de recursos de los contenedores](evidencias/d-stats.png)
